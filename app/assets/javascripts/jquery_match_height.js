@@ -1,12 +1,30 @@
 /**
- * jquery.matchHeight.js v0.5.1
- * http://brm.io/jquery-match-height/
- * License: MIT
- */
+* jquery.matchHeight.js v0.5.2
+* http://brm.io/jquery-match-height/
+* License: MIT
+*/
 
 (function($) {
 
     $.fn.matchHeight = function(byRow) {
+
+        // handle matchHeight('remove')
+        if (byRow === 'remove') {
+            var that = this;
+
+            // remove fixed height from all selected elements
+            this.css('height', '');
+
+            // remove selected elements from all groups
+            $.each($.fn.matchHeight._groups, function(key, group) {
+                group.elements = group.elements.not(that);
+            });
+
+            // TODO: cleanup empty groups
+
+            return this;
+        }
+
         if (this.length <= 1)
             return this;
 
@@ -61,22 +79,22 @@
                 maxHeight = 0;
 
             // iterate the row and find the max height
-            $row.each(function() {
+            $row.each(function(){
                 var $that = $(this);
 
                 // ensure we get the correct actual height (and not a previously set height value)
-                $that.css({
-                    'display': 'block',
-                    'height': ''
-                });
+                $that.css({ 'display': 'block', 'height': '' });
 
                 // find the max height (including padding, but not margin)
                 if ($that.outerHeight(false) > maxHeight)
                     maxHeight = $that.outerHeight(false);
+
+                // revert display block
+                $that.css({ 'display': '' });
             });
 
             // iterate the row and apply the height to all elements
-            $row.each(function() {
+            $row.each(function(){
                 var $that = $(this),
                     verticalPadding = 0;
 
@@ -95,9 +113,9 @@
     };
 
     /*
-     *  _applyDataApi will apply matchHeight to all elements with a data-match-height attribute
-     */
-
+    *  _applyDataApi will apply matchHeight to all elements with a data-match-height attribute
+    */
+   
     $.fn.matchHeight._applyDataApi = function() {
         var groups = {};
 
@@ -119,15 +137,16 @@
     };
 
     /* 
-     *  _update function will re-apply matchHeight to all groups with the correct options
-     */
-
+    *  _update function will re-apply matchHeight to all groups with the correct options
+    */
+   
     $.fn.matchHeight._groups = [];
+    $.fn.matchHeight._throttle = 80;
 
-    var previousResizeWidth = -1;
+    var previousResizeWidth = -1,
+        updateTimeout = -1;
 
     $.fn.matchHeight._update = function(event) {
-
         // prevent update if fired from a resize event 
         // where the viewport width hasn't actually changed
         // fixes an event looping bug in IE8
@@ -138,14 +157,23 @@
             previousResizeWidth = windowWidth;
         }
 
-        $.each($.fn.matchHeight._groups, function() {
-            $.fn.matchHeight._apply(this.elements, this.byRow);
-        });
+        // throttle updates
+        if (updateTimeout === -1) {
+            updateTimeout = setTimeout(function() {
+
+                $.each($.fn.matchHeight._groups, function() {
+                    $.fn.matchHeight._apply(this.elements, this.byRow);
+                });
+
+                updateTimeout = -1;
+
+            }, $.fn.matchHeight._throttle);
+        }
     };
 
     /* 
-     *  bind events
-     */
+    *  bind events
+    */
 
     // apply on DOM ready event
     $($.fn.matchHeight._applyDataApi);
@@ -154,10 +182,10 @@
     $(window).bind('load resize orientationchange', $.fn.matchHeight._update);
 
     /*
-     *  rows utility function
-     *  returns array of jQuery selections representing each row
-     *  (as displayed after float wrapping applied by browser)
-     */
+    *  rows utility function
+    *  returns array of jQuery selections representing each row 
+    *  (as displayed after float wrapping applied by browser)
+    */
 
     var _rows = function(elements) {
         var tolerance = 1,
@@ -166,7 +194,7 @@
             rows = [];
 
         // group elements by their top position
-        $elements.each(function() {
+        $elements.each(function(){
             var $that = $(this),
                 top = $that.offset().top - _parse($that.css('margin-top')),
                 lastRow = rows.length > 0 ? rows[rows.length - 1] : null;
